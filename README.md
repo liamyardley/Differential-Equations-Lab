@@ -10,7 +10,7 @@ Type any first-order differential equation or 2D autonomous system and explore i
 
 ## Why
 
-Free online tools tend to do one thing: plot a slope field, or draw a phase portrait. Very few let students drag an initial condition, see Euler's method built step by step, or find equilibrium points for themselves. DE Explorer was built for the IB Mathematics: Applications and Interpretation HL course, but it suits any course that covers first-order differential equations, coupled systems or numerical methods.
+Free online tools tend to do one thing: plot a slope field, or draw a phase portrait. Very few let students drag an initial condition, see Euler's method built step by step, or find equilibrium points for themselves. Differential Equations Lab was built for the IB Mathematics: Applications and Interpretation HL course, but it suits any course that covers first-order differential equations, coupled systems or numerical methods.
 
 ## Features
 
@@ -92,7 +92,7 @@ Slope fields use x and y. Phase portraits use x and y for an autonomous system (
 
 ## Running locally
 
-Download or clone the repository and open `index.html` in a browser. There is no build step and nothing to install. LaTeX is rendered by [MathJax 3](https://www.mathjax.org/), loaded from the jsDelivr CDN, so an internet connection is needed for the typeset equations; everything else works offline.
+Clone the repository (`git clone https://github.com/liamyardley/Differential-Equations-Lab.git`) or download it and open `index.html` in a browser. There is no build step and nothing to install. LaTeX is rendered by [MathJax 3](https://www.mathjax.org/), loaded from the jsDelivr CDN, so an internet connection is needed for the typeset equations; everything else works offline.
 
 ## Hosting with GitHub Pages
 

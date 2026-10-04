@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Slope fields and phase portraits</title>
+<title>Differential Equations Lab</title>
+<meta name="description" content="Interactive slope fields and phase portraits for teaching differential equations, with Euler's method, nullclines, equilibria and a classify-and-solve activity.">
+<meta property="og:title" content="Differential Equations Lab">
+<meta property="og:description" content="Interactive slope fields and phase portraits for teaching differential equations.">
+<meta property="og:image" content="https://liamyardley.github.io/Differential-Equations-Lab/screenshots/social-preview.png">
+<meta property="og:url" content="https://liamyardley.github.io/Differential-Equations-Lab/">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -85,6 +91,8 @@ tr.sel td{background:color-mix(in srgb,var(--euler) 18%,transparent)}
 .notes .why{background:var(--soft);border-radius:8px;padding:8px 12px;margin:8px 0}
 .notes mjx-container[display="true"]{overflow-x:auto;overflow-y:hidden;padding:2px 0}
 .try{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-top:6px}
+footer{max-width:1240px;margin:0 auto;padding:4px 16px 28px;color:var(--muted);font-size:.88rem;display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px}
+footer a{color:var(--accent)}
 [hidden]{display:none!important}
 </style>
 <script>
@@ -95,7 +103,8 @@ window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]]},svg
 <body>
 <div class="wrap">
 <div>
-  <h1>Slope fields and phase portraits</h1>
+  <h1>Differential Equations Lab</h1>
+  <p class="hint" style="margin:-6px 0 12px">Slope fields and phase portraits</p>
   <div class="panel">
     <div class="seg" role="group" aria-label="Mode">
       <button id="mSlope" aria-pressed="true">Slope field</button>
@@ -192,6 +201,10 @@ window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]]},svg
 </div>
 </div>
 
+<footer>
+  <span>Differential Equations Lab by <a href="https://github.com/liamyardley">Liam Yardley</a>. Code MIT, notes CC BY-NC-SA 4.0.</span>
+  <a href="https://github.com/liamyardley/Differential-Equations-Lab">Source code on GitHub</a>
+</footer>
 <script>
 "use strict";
 /* ---------- Expression parser: one AST gives both evaluation and LaTeX ---------- */
