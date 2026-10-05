@@ -93,6 +93,21 @@ tr.sel td{background:color-mix(in srgb,var(--euler) 18%,transparent)}
 .try{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-top:6px}
 footer{max-width:1240px;margin:0 auto;padding:4px 16px 28px;color:var(--muted);font-size:.88rem;display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px}
 footer a{color:var(--accent)}
+.acard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px}
+.acard h3{font-size:1rem;margin:0 0 6px}
+.step{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.step:first-of-type{border-top:0;padding-top:0}
+.step h4{margin:0 0 6px;font-size:.95rem}
+.mat{display:inline-flex;align-items:center;gap:10px;margin:6px 0}
+.mgrid{display:grid;grid-template-columns:repeat(var(--cols,2),74px);gap:6px;padding:4px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:8px}
+.mgrid input{text-align:center;padding:5px 4px}
+.mgrid input.bad{border-color:var(--eq);background:color-mix(in srgb,var(--eq) 10%,var(--bg))}
+.lrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:6px 0}
+.lrow input{width:130px}
+.choices{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.choices button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--soft)}
+.done{color:var(--main);font-weight:700}
+.answer{background:var(--soft);border-radius:8px;padding:8px 12px;margin-top:8px}
 [hidden]{display:none!important}
 </style>
 <script>
@@ -191,7 +206,7 @@ window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]]},svg
 <div>
   <div class="plotwrap"><canvas id="cv" tabindex="0" aria-label="Plot. Drag the green point to move the initial point; arrow keys also move it."></canvas></div>
   <div class="legend" id="legend"></div>
-  <div class="panel" id="eqPanel" hidden style="margin-top:14px"><h2>Equilibrium points</h2><div id="eqList"></div></div>
+  <div class="panel" id="eqPanel" hidden style="margin-top:14px"><h2>Analyse the system</h2><div id="eqList"></div></div>
   <div class="panel" id="eulerPanel" hidden style="margin-top:14px">
     <h2>Euler's method</h2>
     <div class="tex" id="eulerTex" style="justify-content:flex-start"></div>
@@ -338,7 +353,7 @@ const $=id=>document.getElementById(id);
 const st={
   mode:"slope",
   slope:{src:["x + y"],w:[-4,4,-4,4],p:[0,0],h:0.5,n:8,seeds:[],F:null,ast:null},
-  phase:{src:["x + 2y","2x + y"],w:[-3,3,-3,3],p:[1,-0.5],h:0.1,n:15,seeds:[],F:null,ast:null,eqs:[],revealed:new Set(),linear:false},
+  phase:{src:["x + 2y","2x + y"],w:[-3,3,-3,3],p:[1,-0.5],h:0.1,n:15,seeds:[],F:null,ast:null,eqs:[],revealed:new Set(),linear:false,slDone:new Set(),task:null},
 };
 const S=()=>st[st.mode];
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -501,7 +516,8 @@ function analyse(e){
     ev=`\\lambda = ${Math.abs(re)<eps?"":fmt(re)}\\pm ${fmt(im)}i`;
     type=Math.abs(re)<eps?(st.phase.linear?"Centre":"Centre (linear approximation)"):(re<0?"Stable spiral":"Unstable spiral");
   }
-  return{J,ev,type,vecs};
+  const scalar=Math.abs(J[1])<1e-9&&Math.abs(J[2])<1e-9&&Math.abs(J[0]-J[3])<1e-9;
+  return{J,ev,type,vecs,scalar,tr,det,disc};
 }
 function checkLinear(){
   const s=st.phase,w=s.w;const pts=[[0.13,0.71],[0.62,0.24],[0.87,0.55],[0.31,0.38]].map(([a,b])=>[w[0]+a*(w[1]-w[0]),w[2]+b*(w[3]-w[2])]);
@@ -537,10 +553,10 @@ function drawBase(){
       c.strokeStyle=css("--blue");strokeSegs(c,contour((x,y)=>s.F(x,y)[1]));
     }
     if($("showField").checked)drawField(c);
-    if($("showSL").checked){
+    if($("showSL").checked||s.slDone.size){
       c.strokeStyle=css("--sl");c.fillStyle=css("--sl");c.lineWidth=2.4;
       const span=Math.hypot(s.w[1]-s.w[0],s.w[3]-s.w[2]);
-      for(const e of s.eqs){const a=analyse(e);for(const {l,v} of a.vecs){
+      for(const [ei,e] of s.eqs.entries()){if(!$("showSL").checked&&!s.slDone.has(ei))continue;const a=analyse(e);if(a.scalar)continue;for(const {l,v} of a.vecs){
         if(Math.abs(l)<1e-12)continue;
         const L=s.linear?span*2:span*0.12;
         const p1=toS(e.x-v[0]*L,e.y-v[1]*L),p2=toS(e.x+v[0]*L,e.y+v[1]*L);
@@ -659,8 +675,190 @@ function render(rebuildBase=true){
 }
 let raf=0;function overlay(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;render(false)})}
 
-/* ---------- Equilibrium panel ---------- */
-function renderEqPanel(){
+
+/* ---------- Analyse the system: student task ---------- */
+function resetTask(){const s=st.phase;s.task={lin:null,linSel:null,linTries:0,cards:{}};s.slDone=new Set()}
+function card(i){const t=st.phase.task;return t.cards[i]||(t.cards[i]={A:["","","",""],Aok:false,At:0,Abad:[],L:["",""],Lok:false,Lt:0,V:[["",""],["",""]],Vok:false,Vt:0,T:null,Tok:false,Tt:0,fb:{}})}
+function num(src){const c=compile(String(src),[]);const v=c.fn();if(!isFinite(v))throw Error("Not a number.");return v}
+function cplx(src){
+  const c=compile(String(src).replace(/\u2212/g,"-"),["i"]),f0=c.fn(0),f1=c.fn(1),f2=c.fn(2);
+  const re=f0,im=f1-f0;if(![re,im].every(isFinite)||Math.abs((f2-f0)-2*im)>1e-9*(1+Math.abs(im)))throw Error("Write each eigenvalue like 3, -0.5, 1 + 2i or -1 - 2i.");
+  return{re,im};
+}
+function eigs(a){
+  if(a.disc>=-1e-9){const r=Math.sqrt(Math.max(a.disc,0));return[{re:(a.tr+r)/2,im:0},{re:(a.tr-r)/2,im:0}]}
+  const im=Math.sqrt(-a.disc)/2;return[{re:a.tr/2,im},{re:a.tr/2,im:-im}];
+}
+const ctex=z=>Math.abs(z.im)<1e-9?fmt(z.re):(Math.abs(z.re)<1e-9?"":fmt(z.re))+(z.im<0?"-":(Math.abs(z.re)<1e-9?"":"+"))+(Math.abs(Math.abs(z.im)-1)<1e-9?"":fmt(Math.abs(z.im)))+"i";
+const TYPES=["Saddle point","Stable node","Unstable node","Stable spiral","Unstable spiral","Centre"];
+function typeKey(t){if(/Degenerate/.test(t))return null;if(/node/.test(t))return t.startsWith("Stable")?"Stable node":"Unstable node";if(/Centre/.test(t))return"Centre";return t}
+function mtex(J){return`\\begin{pmatrix}${fmt(J[0])}&${fmt(J[1])}\\\\${fmt(J[2])}&${fmt(J[3])}\\end{pmatrix}`}
+function lineTex(e,v){
+  if(Math.abs(v[0])<1e-9)return`x=${fmt(e.x)}`;
+  const m=v[1]/v[0],c=e.y-m*e.x,mm=Math.abs(m)<1e-12?"":(Math.abs(m-1)<1e-9?"":Math.abs(m+1)<1e-9?"-":fmt(m))+"x";
+  if(!mm)return`y=${fmt(c)}`;
+  return`y=${mm}${Math.abs(c)<1e-9?"":(c<0?"-":"+")+fmt(Math.abs(c))}`;
+}
+function renderEqPanel(){renderTask()}
+function renderTask(){
+  const s=st.phase,box=$("eqList");
+  if(st.mode!=="phase"||!s.F){$("eqPanel").hidden=true;return}
+  if(!s.task)resetTask();
+  $("eqPanel").hidden=false;
+  const t=s.task,eqTex=`\\frac{dx}{dt}=${tex(s.ast[0])},\\quad \\frac{dy}{dt}=${tex(s.ast[1])}`;
+  let h=`<div class="step"><h4>1. Is this system linear or nonlinear?</h4><p style="margin:0">\\(${eqTex}\\)</p>`;
+  if(t.lin===null){
+    h+=`<div class="choices">${["Linear","Nonlinear"].map(o=>`<button data-lin="${o}" aria-pressed="${t.linSel===o}">${o}</button>`).join("")}</div>
+    <div class="row" style="margin-top:4px"><button class="primary" data-act="lin">Check</button></div><div class="fb" id="linFb"></div>`;
+  }else h+=`<p class="done" style="margin:6px 0 0">${s.linear?"Linear":"Nonlinear"} \u2713</p>`;
+  h+=`</div>`;
+  if(t.lin){
+    if(s.linear){
+      if(!s.eqs.length)h+=`<div class="step"><p>The matrix of this system is singular, so there is no single equilibrium point in view (there may be a whole line of them). Try another system.</p></div>`;
+      else h+=cardHTML(0,true);
+    }else{
+      h+=`<div class="step"><h4>2. Find the equilibrium points</h4><p style="margin:0">Solve \\(\\frac{dx}{dt}=0\\) and \\(\\frac{dy}{dt}=0\\) simultaneously (the nullclines cross there), then tap each point on the plot to check it. Each one you find gets its own analysis below.</p></div>`;
+      const shown=s.eqs.map((e,i)=>i).filter(i=>$("showEq").checked||s.revealed.has(i));
+      if(!shown.length)h+=`<p class="hint">No equilibrium points found yet.</p>`;
+      for(const i of shown)h+=cardHTML(i,false);
+    }
+  }
+  box.innerHTML=h;
+  // restore focus-free values already in HTML; typeset
+  typeset(box);
+}
+function matInputs(i,key,vals,bad,cols=2,rows=2){
+  let g=`<div class="mgrid" style="--cols:${cols}">`;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const k=r*cols+c;g+=`<input data-card="${i}" data-key="${key}" data-k="${k}" value="${String(vals[k]??"").replace(/"/g,"&quot;")}" class="${bad&&bad.includes(k)?"bad":""}" inputmode="decimal" aria-label="row ${r+1} column ${c+1}">`}
+  return g+`</div>`;
+}
+function cardHTML(i,lin){
+  const s=st.phase,e=s.eqs[i],a=analyse(e),c=card(i),M=lin?"A":"J",n0=lin?2:3;
+  let h=`<div class="acard"><h3>${lin?"The linear system":`Equilibrium at (${fmt(e.x)}, ${fmt(e.y)})`}</h3>`;
+  // Step: matrix
+  h+=`<div class="step"><h4>${n0}. ${lin?"Write the system in matrix form":"Find the Jacobian matrix at this point"}</h4>`;
+  if(lin){
+    h+=`<p style="margin:0">\\(\\begin{pmatrix}\\dot x\\\\ \\dot y\\end{pmatrix}=A\\begin{pmatrix}x\\\\ y\\end{pmatrix}\\), where \\(A=\\begin{pmatrix}a&b\\\\ c&d\\end{pmatrix}\\).${Math.abs(e.x)>1e-9||Math.abs(e.y)>1e-9?` (The equilibrium is not at the origin, so use the coefficients of \\(x\\) and \\(y\\) only; the constants just move the equilibrium.)`:""}</p>`;
+  }else{
+    h+=`<p style="margin:0">\\(J=\\begin{pmatrix}\\frac{\\partial f}{\\partial x}&\\frac{\\partial f}{\\partial y}\\\\[2pt] \\frac{\\partial g}{\\partial x}&\\frac{\\partial g}{\\partial y}\\end{pmatrix}\\), where \\(f=\\frac{dx}{dt}\\) and \\(g=\\frac{dy}{dt}\\). Differentiate, then substitute \\(x=${fmt(e.x)},\\ y=${fmt(e.y)}\\).</p>`;
+  }
+  if(c.Aok)h+=`<p style="margin:8px 0 0">\\(${M}=${mtex(a.J)}\\) <span class="done">\u2713</span></p></div>`;
+  else{
+    h+=`<div class="mat"><span>\\(${M}=\\)</span>${matInputs(i,"A",c.A,c.Abad)}</div><div class="row" style="margin-top:4px"><button class="primary" data-act="A" data-card="${i}">Check</button>${c.At>=2?`<button data-act="Ashow" data-card="${i}">Show answer</button>`:""}</div><div class="fb ${c.fb.Ac||""}">${c.fb.A||""}</div></div></div>`;
+    return h;
+  }
+  // Step: eigenvalues
+  const ev=eigs(a);
+  h+=`<div class="step"><h4>${n0+1}. Find the eigenvalues of \\(${M}\\)</h4><p style="margin:0">Solve \\(\\det(${M}-\\lambda I)=0\\):\\(\\quad\\det\\begin{pmatrix}${fmt(a.J[0])}-\\lambda&${fmt(a.J[1])}\\\\ ${fmt(a.J[2])}&${fmt(a.J[3])}-\\lambda\\end{pmatrix}=0\\)</p>`;
+  if(c.Lok)h+=`<p style="margin:8px 0 0">\\(\\lambda_1=${ctex(ev[0])},\\ \\lambda_2=${ctex(ev[1])}\\) <span class="done">\u2713</span></p></div>`;
+  else{
+    h+=`<div class="lrow"><span>\\(\\lambda_1=\\)</span><input data-card="${i}" data-key="L" data-k="0" value="${c.L[0].replace(/"/g,"&quot;")}"><span>\\(\\lambda_2=\\)</span><input data-card="${i}" data-key="L" data-k="1" value="${c.L[1].replace(/"/g,"&quot;")}"></div>
+    <p class="hint" style="margin:0">Complex eigenvalues can be typed like -1 + 2i. Repeated eigenvalues go in both boxes.</p>
+    <div class="row"><button class="primary" data-act="L" data-card="${i}">Check</button>${c.Lt>=2?`<button data-act="Lshow" data-card="${i}">Show answer</button>`:""}</div><div class="fb ${c.fb.Lc||""}">${c.fb.L||""}</div></div></div>`;
+    return h;
+  }
+  // Step: eigenvectors
+  const real=Math.abs(ev[0].im)<1e-9;
+  h+=`<div class="step"><h4>${n0+2}. ${real?`Find the eigenvectors${lin?" and the straight-line trajectories":""}`:"Eigenvectors"}</h4>`;
+  if(!real){
+    h+=`<p style="margin:0">The eigenvalues are complex, so there are no real eigenvectors. No trajectory travels along a straight line: solutions turn around the equilibrium instead${Math.abs(ev[0].re)<1e-9?" (closed loops when the real part is 0)":", spiralling"}.</p></div>`;
+    c.Vok=true;
+  }else{
+    const vl=vecList(a,ev);
+    if(c.Vok){
+      h+=`<p style="margin:0">`+vl.map((q,k)=>{const w=shownVec(c,k,q);return`\\(\\lambda=${fmt(q.l)}:\\ \\mathbf v=\\begin{pmatrix}${fmt(w[0])}\\\\ ${fmt(w[1])}\\end{pmatrix}\\)`}).join("&emsp;")+` <span class="done">\u2713</span></p>`;
+      if(a.scalar)h+=`<p>Every nonzero vector is an eigenvector here, so every line through the equilibrium is a straight-line trajectory.</p>`;
+      else{
+        h+=`<div class="answer"><b>${lin?"Straight-line trajectories":"Eigenvector directions"}</b>${lin?"":" (trajectories near the equilibrium approach or leave along these lines; they are only exactly straight for linear systems)"}:`;
+        for(const q of vl){if(Math.abs(q.l)<1e-12){h+=`<div>\\(${lineTex(e,q.v)}\\): a line of equilibrium points (\\(\\lambda=0\\)).</div>`;continue}
+          h+=`<div>\\(${lineTex(e,q.v)}\\): \\(\\lambda=${fmt(q.l)}${q.l<0?"<0":">0"}\\), so ${lin?"solutions on this line move":"nearby trajectories move along this direction"} ${q.l<0?"towards":"away from"} the equilibrium.</div>`}
+        h+=`<div class="hint" style="margin-top:6px">These are now drawn on the plot.</div></div>`;
+      }
+      h+=`</div>`;
+    }else{
+      h+=`<p style="margin:0">For each eigenvalue, solve \\((${M}-\\lambda I)\\mathbf v=\\mathbf 0\\). Any nonzero multiple of an eigenvector is fine.</p>`;
+      for(const [k,q] of vl.entries()){
+        h+=`<div class="lrow"><span>\\(\\lambda=${fmt(q.l)}:\\quad \\mathbf v=\\)</span>${matInputs(i,"V"+k,c.V[k],c.Vbad&&c.Vbad.includes(k)?[0,1]:[],1,2)}</div>`;
+      }
+      h+=`<div class="row"><button class="primary" data-act="V" data-card="${i}">Check</button>${c.Vt>=2?`<button data-act="Vshow" data-card="${i}">Show answer</button>`:""}</div><div class="fb ${c.fb.Vc||""}">${c.fb.V||""}</div></div></div>`;
+      return h;
+    }
+  }
+  // Step: classify
+  const key=typeKey(a.type);
+  h+=`<div class="step"><h4>${n0+3}. What type of equilibrium is it?</h4>`;
+  if(!key){h+=`<p style="margin:0">One eigenvalue is zero, so this is a degenerate case that doesn't fit the usual types.</p></div></div>`;return h}
+  if(c.Tok){
+    h+=`<p class="done" style="margin:0">${key} \u2713</p>`;
+    if(!lin&&key==="Centre")h+=`<p class="hint">For a nonlinear system the linearisation can't confirm a centre on its own, so check the trajectories on the plot: closed loops confirm it.</p>`;
+    h+=`</div></div>`;
+  }else{
+    h+=`<div class="choices">${TYPES.map(o=>`<button data-type="${o}" data-card="${i}" aria-pressed="${c.T===o}">${o}</button>`).join("")}</div>
+    <div class="row" style="margin-top:4px"><button class="primary" data-act="T" data-card="${i}">Check</button></div><div class="fb ${c.fb.Tc||""}">${c.fb.T||""}</div></div></div>`;
+  }
+  return h;
+}
+function niceVec(v){const nz=v.filter(x=>Math.abs(x)>1e-9);if(!nz.length)return v;const d=nz.reduce((m,x)=>Math.abs(x)<Math.abs(m)?x:m);return v.map(x=>{const r=x/d;return Math.abs(r-Math.round(r))<1e-6?Math.round(r):r})}
+function shownVec(c,k,q){try{const v=c.V[k].map(num);if(Math.hypot(...v)>1e-12)return v}catch(e){}return niceVec(q.v)}
+function vecList(a,ev){
+  if(a.scalar)return[{l:ev[0].re,v:[1,0]}];
+  if(Math.abs(ev[0].re-ev[1].re)<1e-9)return[{l:ev[0].re,v:a.vecs[0].v}];
+  return a.vecs.map(q=>({l:q.l,v:q.v}));
+}
+function taskCheck(act,i){
+  const s=st.phase,e=s.eqs[i],a=analyse(e),c=card(i),lin=s.linear,M=lin?"A":"J";
+  const say=(k,ok,msg)=>{c.fb[k]=msg;c.fb[k+"c"]=ok?"ok":"no"};
+  if(act==="A"){
+    c.Abad=[];let err=null;
+    c.A.forEach((v,k)=>{try{if(!near(num(v),a.J[k],1e-6))c.Abad.push(k)}catch(x){c.Abad.push(k);if(String(v).trim())err=err||"Use numbers only (fractions like 1/2 are fine)."}});
+    if(!c.Abad.length){c.Aok=true;c.fb.A=""}
+    else{c.At++;say("A",false,(err?err+" ":"")+`${c.Abad.length===1?"One entry is":c.Abad.length+" entries are"} not right yet (marked in red). `+(lin?"Each row holds the coefficients of x and y from one equation.":"Check the partial derivatives, then substitute the coordinates of the equilibrium."))}
+  }else if(act==="Ashow"){c.A=a.J.map(v=>fmt(v));c.Abad=[];c.Aok=true}
+  else if(act==="L"){
+    const ev=eigs(a);let z;
+    try{z=c.L.map(cplx)}catch(x){say("L",false,x.message);return}
+    const close=(p,q)=>Math.hypot(p.re-q.re,p.im-q.im)<=0.006*(1+Math.hypot(q.re,q.im));
+    if((close(z[0],ev[0])&&close(z[1],ev[1]))||(close(z[0],ev[1])&&close(z[1],ev[0]))){c.Lok=true}
+    else{c.Lt++;const one=close(z[0],ev[0])||close(z[0],ev[1])||close(z[1],ev[0])||close(z[1],ev[1]);
+      say("L",false,(one?"One of these is right. ":"Not quite. ")+`Check your characteristic equation: the eigenvalues should add up to the trace of ${M} and multiply to give its determinant.`)}
+  }else if(act==="Lshow"){c.Lok=true}
+  else if(act==="V"){
+    const ev=eigs(a),vl=vecList(a,ev);c.Vbad=[];
+    for(const [k,q] of vl.entries()){
+      let v;try{v=c.V[k].map(num)}catch(x){c.Vbad.push(k);continue}
+      const g=Math.hypot(...v);if(g<1e-12){c.Vbad.push(k);continue}
+      if(a.scalar)continue;
+      if(Math.abs(v[0]*q.v[1]-v[1]*q.v[0])/g>0.01)c.Vbad.push(k);
+    }
+    if(!c.Vbad.length){c.Vok=true;s.slDone.add(i);render(true);updateLegend()}
+    else{c.Vt++;say("V",false,`${c.Vbad.length===1&&vl.length>1?"One eigenvector isn't":"Not"} right yet. Substitute \u03bb into \\((${M}-\\lambda I)\\mathbf v=\\mathbf 0\\): the first row gives \\((a-\\lambda)v_1+b\\,v_2=0\\). A zero vector doesn't count.`)}
+  }else if(act==="Vshow"){const vl=vecList(a,eigs(a));vl.forEach((q,k)=>{const w=niceVec(q.v);c.V[k]=[fmt(w[0]),fmt(w[1])]});c.Vok=true;s.slDone.add(i);render(true);updateLegend()}
+  else if(act==="T"){
+    if(!c.T){say("T",false,"Choose one type.");return}
+    if(c.T===typeKey(a.type)){c.Tok=true;if(lin){s.revealed.add(i);overlay()}}
+    else{c.Tt++;say("T",false,"Not quite. Real eigenvalues with opposite signs give a saddle; real eigenvalues of the same sign give a node (stable if negative). Complex eigenvalues a \u00b1 bi give a spiral (stable if a < 0) or a centre if a = 0.")}
+  }
+}
+$("eqList").addEventListener("input",ev=>{
+  const el=ev.target;if(!el.dataset.card)return;const c=card(+el.dataset.card),k=+el.dataset.k,key=el.dataset.key;
+  if(key==="A")c.A[k]=el.value;else if(key==="L")c.L[k]=el.value;else if(key.startsWith("V"))c.V[+key.slice(1)][k]=el.value;
+  el.classList.remove("bad");
+});
+$("eqList").addEventListener("click",ev=>{
+  const s=st.phase,t=s.task,b=ev.target.closest("button");if(!b)return;
+  if(b.dataset.lin){t.linSel=b.dataset.lin;b.parentNode.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("linFb").textContent="";return}
+  if(b.dataset.type){card(+b.dataset.card).T=b.dataset.type;b.parentNode.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));return}
+  const act=b.dataset.act;if(!act)return;
+  if(act==="lin"){
+    const fb=$("linFb");if(!t.linSel){fb.className="fb no";fb.textContent="Choose one.";return}
+    if((t.linSel==="Linear")===s.linear){t.lin=true}
+    else{t.linTries++;fb.className="fb no";fb.textContent=t.linSel==="Linear"?"Not quite. Look for terms that aren't just a number times x or y: products like xy, powers like x\u00b2, or functions like sin x make a system nonlinear.":"Not quite. Each right-hand side is just a number times x plus a number times y (plus possibly a constant), so the system is linear.";return}
+  }else taskCheck(act,+b.dataset.card);
+  renderTask();
+});
+
+/* ---------- old equilibrium panel (replaced) ---------- */
+function oldEqPanel(){
   const s=st.phase,list=$("eqList");
   const shown=s.eqs.map((e,i)=>i).filter(i=>$("showEq").checked||s.revealed.has(i));
   $("eqPanel").hidden=st.mode!=="phase"||!shown.length;
@@ -689,7 +887,7 @@ function readFunctions(){
       try{b=compile($("g2").value,["x","y"])}catch(e){$("g2").classList.add("bad");throw e}
       s.src=[$("g1").value,$("g2").value];s.F=(x,y)=>[a.fn(x,y),b.fn(x,y)];s.ast=[a.ast,b.ast];
       setTex($("tex"),`\\begin{aligned}\\frac{dx}{dt}&=${tex(a.ast)}\\\\ \\frac{dy}{dt}&=${tex(b.ast)}\\end{aligned}`,true,`dx/dt = ${$("g1").value},  dy/dt = ${$("g2").value}`);
-      s.linear=checkLinear();s.eqs=findEquilibria();s.revealed=new Set();
+      s.linear=checkLinear();s.eqs=findEquilibria();s.revealed=new Set();resetTask();
     }
     return true;
   }catch(e){if(st.mode==="slope")$("f1").classList.add("bad");$("err").textContent=e.message;return false}
@@ -697,7 +895,7 @@ function readFunctions(){
 function readWindow(){
   const w=["x0w","x1w","y0w","y1w"].map(k=>parseFloat($(k).value));
   if(w.some(isNaN)||w[0]>=w[1]||w[2]>=w[3]){$("err").textContent="Check the window: each lower value must be less than the upper one.";return false}
-  S().w=w;if(st.mode==="slope")resetQuiz();if(st.mode==="phase"&&S().F){st.phase.eqs=findEquilibria();st.phase.revealed=new Set();st.phase.linear=checkLinear()}
+  S().w=w;if(st.mode==="slope")resetQuiz();if(st.mode==="phase"&&S().F){st.phase.eqs=findEquilibria();st.phase.revealed=new Set();st.phase.linear=checkLinear();resetTask()}
   return true;
 }
 function writeInputs(){
@@ -737,7 +935,7 @@ function updateLegend(){
   if(st.mode==="slope"&&$("showIso").checked){L.push(sw("--eq","Nullcline (m = 0)"));L.push(sw("--iso","Isoclines"))}
   if(st.mode==="phase"){
     if($("showNull").checked){L.push(sw("--eq","dx/dt = 0"));L.push(sw("--blue","dy/dt = 0"))}
-    if($("showSL").checked)L.push(sw("--sl",st.phase.linear?"Straight-line trajectories":"Eigenvector directions at equilibria"));
+    if($("showSL").checked||st.phase.slDone.size)L.push(sw("--sl",st.phase.linear?"Straight-line trajectories":"Eigenvector directions at equilibria"));
   }
   $("legend").innerHTML=L.join("");
 }

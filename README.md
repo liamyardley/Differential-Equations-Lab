@@ -51,14 +51,21 @@ A short interactive activity that works for any equation entered, not just the b
 - Direction field, trajectories with direction arrows, and a draggable initial point.
 - Nullclines (dx/dt = 0 and dy/dt = 0) in separate colours.
 - Straight-line trajectories along the eigenvectors for linear systems. For nonlinear systems, the eigenvector directions of the linearisation are shown at each equilibrium.
-- **Equilibrium points start hidden.** Students tap where they think one is to reveal it, together with its Jacobian, eigenvalues and classification (saddle, stable or unstable node, stable or unstable spiral, centre). A toggle shows them all at once.
+- **Analyse the system**, a step-by-step student task with feedback at every stage:
+  1. Decide whether the system is linear or nonlinear.
+  2. Linear systems: fill in the matrix A in a 2×2 template. Nonlinear systems: find the equilibrium points (they start hidden; students tap where they think one is to reveal it), then fill in the Jacobian at each one.
+  3. Find the eigenvalues (complex values such as -1 + 2i are accepted).
+  4. Find the eigenvectors. The straight-line trajectories (or, for nonlinear systems, the eigenvector directions) then appear on the plot, with their equations.
+  5. Classify the equilibrium: saddle, stable or unstable node, stable or unstable spiral, or centre.
+
+  Wrong answers are highlighted (down to the individual matrix entry) with a hint, and a "Show answer" button appears after two attempts.
 - Euler's method for the coupled system, with step triangles and a table.
 
 ![Competing species model with nullclines and eigenvector directions](screenshots/phase-portrait.png)
 
-| Revealed equilibria | Euler's method for a coupled system |
+| Analyse the system | Euler's method for a coupled system |
 | --- | --- |
-| ![Equilibrium classification](screenshots/equilibria.png) | ![Euler's method for a coupled system](screenshots/euler-coupled.png) |
+| ![Step-by-step analysis of an equilibrium point](screenshots/equilibria.png) | ![Euler's method for a coupled system](screenshots/euler-coupled.png) |
 
 ### Also
 
